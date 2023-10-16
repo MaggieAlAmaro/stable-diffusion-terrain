@@ -1,0 +1,7 @@
+.vscode
+__pycache__
+
+logs/*
+data/terrain/
+configs/first_stage_models/
+latent_diffusion.egg-info

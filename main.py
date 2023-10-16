@@ -166,7 +166,7 @@ class DataModuleFromConfig(pl.LightningDataModule):
         super().__init__()
         self.batch_size = batch_size
         self.dataset_configs = dict()
-        self.num_workers = num_workers if num_workers is not None else batch_size * 2
+        self.num_workers = 0 # num_workers if num_workers is not None else batch_size * 2
         self.use_worker_init_fn = use_worker_init_fn
         if train is not None:
             self.dataset_configs["train"] = train
@@ -201,7 +201,7 @@ class DataModuleFromConfig(pl.LightningDataModule):
         else:
             init_fn = None
         return DataLoader(self.datasets["train"], batch_size=self.batch_size,
-                          num_workers=self.num_workers, shuffle=False if is_iterable_dataset else True,
+                          num_workers=self.num_workers, shuffle=False, #if is_iterable_dataset else True,
                           worker_init_fn=init_fn)
 
     def _val_dataloader(self, shuffle=False):
@@ -273,6 +273,7 @@ class SetupCallback(Callback):
             print(OmegaConf.to_yaml(self.lightning_config))
             OmegaConf.save(OmegaConf.create({"lightning": self.lightning_config}),
                            os.path.join(self.cfgdir, "{}-lightning.yaml".format(self.now)))
+            trainer.save_checkpoint(os.path.join(self.ckptdir, "epoch-1.ckpt"))
 
         else:
             # ModelCheckpoint callback created log directory --- remove it
@@ -478,7 +479,7 @@ if __name__ == "__main__":
         if not os.path.exists(opt.resume):
             raise ValueError("Cannot find {}".format(opt.resume))
         if os.path.isfile(opt.resume):
-            paths = opt.resume.split("/")
+            paths = opt.resume.split(os.sep)
             # idx = len(paths)-paths[::-1].index("logs")+1
             # logdir = "/".join(paths[:idx])
             logdir = "/".join(paths[:-2])
@@ -518,7 +519,7 @@ if __name__ == "__main__":
         # merge trainer cli with config
         trainer_config = lightning_config.get("trainer", OmegaConf.create())
         # default to ddp
-        trainer_config["accelerator"] = "ddp"
+        #trainer_config["accelerator"] = "ddp"
         for k in nondefault_trainer_args(opt):
             trainer_config[k] = getattr(opt, k)
         if not "gpus" in trainer_config:
@@ -564,6 +565,11 @@ if __name__ == "__main__":
         logger_cfg = OmegaConf.merge(default_logger_cfg, logger_cfg)
         trainer_kwargs["logger"] = instantiate_from_config(logger_cfg)
 
+
+
+        #region Callbacks
+
+
         # modelcheckpoint - use TrainResult/EvalResult(checkpoint_on=metric) to
         # specify which metric is used to determine best models
         default_modelckpt_cfg = {
@@ -578,7 +584,8 @@ if __name__ == "__main__":
         if hasattr(model, "monitor"):
             print(f"Monitoring {model.monitor} as checkpoint metric.")
             default_modelckpt_cfg["params"]["monitor"] = model.monitor
-            default_modelckpt_cfg["params"]["save_top_k"] = 3
+            #default_modelckpt_cfg["params"]["save_top_k"] = 3
+            default_modelckpt_cfg["params"]["save_top_k"] = -1
 
         if "modelcheckpoint" in lightning_config:
             modelckpt_cfg = lightning_config.modelcheckpoint
@@ -588,6 +595,7 @@ if __name__ == "__main__":
         print(f"Merged modelckpt-cfg: \n{modelckpt_cfg}")
         if version.parse(pl.__version__) < version.parse('1.4.0'):
             trainer_kwargs["checkpoint_callback"] = instantiate_from_config(modelckpt_cfg)
+
 
         # add callback which sets up log directory
         default_callbacks_cfg = {
@@ -656,6 +664,8 @@ if __name__ == "__main__":
 
         trainer_kwargs["callbacks"] = [instantiate_from_config(callbacks_cfg[k]) for k in callbacks_cfg]
 
+        #endregion
+
         trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
         trainer.logdir = logdir  ###
 
@@ -708,21 +718,27 @@ if __name__ == "__main__":
                 pudb.set_trace()
 
 
-        import signal
+        #import signal
 
-        signal.signal(signal.SIGUSR1, melk)
-        signal.signal(signal.SIGUSR2, divein)
+        #signal.signal(signal.SIGUSR1, melk)
+        #signal.signal(signal.SIGUSR2, divein)
+
+        #trainer.save_checkpoint(os.path.join(ckptdir, "epoch-1.ckpt"))
 
         # run
         if opt.train:
             try:
                 trainer.fit(model, data)
-            except Exception:
+            except Exception as e:
+                print("###EXCEPTION####")
+                print(e)
                 melk()
                 raise
         if not opt.no_test and not trainer.interrupted:
             trainer.test(model, data)
-    except Exception:
+    except Exception as e:
+        print("###EXCEPTION####")
+        print(e)
         if opt.debug and trainer.global_rank == 0:
             try:
                 import pudb as debugger

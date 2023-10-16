@@ -11,7 +11,6 @@ model:
     image_size: 64
     channels: 3
     monitor: val/loss_simple_ema
-
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
@@ -39,7 +38,7 @@ model:
       params:
         embed_dim: 3
         n_embed: 8192
-        ckpt_path: models/first_stage_models/vq-f4/model.ckpt
+        ckpt_path: configs/first_stage_models/vq-f4/model.ckpt #models/first_stage_models/vq-f4/model.ckpt
         ddconfig:
           double_z: false
           z_channels: 3
@@ -64,11 +63,11 @@ data:
     num_workers: 5
     wrap: false
     train:
-      target: taming.data.faceshq.CelebAHQTrain
+      target: taming.data.faceshq.TerrainTrain
       params:
         size: 256
     validation:
-      target: taming.data.faceshq.CelebAHQValidation
+      target: taming.data.faceshq.TerrainValidation
       params:
         size: 256
 
@@ -81,6 +80,7 @@ lightning:
         batch_frequency: 5000
         max_images: 8
         increase_log_steps: False
+        log_first_step: True
 
   trainer:
     benchmark: True

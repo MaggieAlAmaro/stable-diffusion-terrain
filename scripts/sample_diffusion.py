@@ -3,6 +3,11 @@ import torch
 import time
 import numpy as np
 from tqdm import trange
+import tqdm 
+import torchvision
+
+
+from pytorch_lightning import seed_everything
 
 from omegaconf import OmegaConf
 from PIL import Image
@@ -253,7 +258,7 @@ if __name__ == "__main__":
     if os.path.isfile(opt.resume):
         # paths = opt.resume.split("/")
         try:
-            logdir = '/'.join(opt.resume.split('/')[:-1])
+            logdir = os.sep.join(opt.resume.split(os.sep)[:-2])
             # idx = len(paths)-paths[::-1].index("logs")+1
             print(f'Logdir is {logdir}')
         except ValueError:
@@ -264,9 +269,10 @@ if __name__ == "__main__":
     else:
         assert os.path.isdir(opt.resume), f"{opt.resume} is not a directory"
         logdir = opt.resume.rstrip("/")
-        ckpt = os.path.join(logdir, "model.ckpt")
+        ckpt = os.path.join(logdir, "checkpoints", "last.ckpt")
 
-    base_configs = sorted(glob.glob(os.path.join(logdir, "config.yaml")))
+    base_configs = [os.path.join(logdir, "configs"+os.sep+ os.path.basename(logdir).split("_")[0]+"-project.yaml")]
+    
     opt.base = base_configs
 
     configs = [OmegaConf.load(cfg) for cfg in opt.base]
