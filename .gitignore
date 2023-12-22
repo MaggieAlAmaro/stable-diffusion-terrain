@@ -1,7 +1,8 @@
 .vscode
 __pycache__
-
 logs/*
+data/celebahq/
 data/terrain/
+data/*
 configs/first_stage_models/
 latent_diffusion.egg-info

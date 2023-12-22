@@ -1,11 +1,14 @@
 import torch
 import pytorch_lightning as pl
 import torch.nn.functional as F
+import numpy as np
+from packaging import version
 from contextlib import contextmanager
 
 from taming.modules.vqvae.quantize import VectorQuantizer2 as VectorQuantizer
 
 from ldm.modules.diffusionmodules.model import Encoder, Decoder
+from ldm.modules.ema import LitEma
 from ldm.modules.distributions.distributions import DiagonalGaussianDistribution
 
 from ldm.util import instantiate_from_config
@@ -148,8 +151,9 @@ class VQModel(pl.LightningModule):
         if optimizer_idx == 0:
             # autoencode
             aeloss, log_dict_ae = self.loss(qloss, x, xrec, optimizer_idx, self.global_step,
-                                            last_layer=self.get_last_layer(), split="train",
-                                            predicted_indices=ind)
+                                            last_layer=self.get_last_layer(),
+                                            split="train")
+                                            #predicted_indices=ind)
 
             self.log_dict(log_dict_ae, prog_bar=False, logger=True, on_step=True, on_epoch=True)
             return aeloss
@@ -173,15 +177,15 @@ class VQModel(pl.LightningModule):
         aeloss, log_dict_ae = self.loss(qloss, x, xrec, 0,
                                         self.global_step,
                                         last_layer=self.get_last_layer(),
-                                        split="val"+suffix,
-                                        predicted_indices=ind
+                                        #predicted_indices=ind,
+                                        split="val"+suffix
                                         )
 
         discloss, log_dict_disc = self.loss(qloss, x, xrec, 1,
                                             self.global_step,
                                             last_layer=self.get_last_layer(),
-                                            split="val"+suffix,
-                                            predicted_indices=ind
+                                            #predicted_indices=ind,
+                                            split="val"+suffix
                                             )
         rec_loss = log_dict_ae[f"val{suffix}/rec_loss"]
         self.log(f"val{suffix}/rec_loss", rec_loss,
@@ -214,12 +218,12 @@ class VQModel(pl.LightningModule):
             print("Setting up LambdaLR scheduler...")
             scheduler = [
                 {
-                    'scheduler': LambdaLR(opt_ae, lr_lambda=scheduler.schedule),
+                    'scheduler': torch.optim.lr_scheduler.LambdaLR(opt_ae, lr_lambda=scheduler.schedule),
                     'interval': 'step',
                     'frequency': 1
                 },
                 {
-                    'scheduler': LambdaLR(opt_disc, lr_lambda=scheduler.schedule),
+                    'scheduler': torch.optim.lr_scheduler.LambdaLR(opt_disc, lr_lambda=scheduler.schedule),
                     'interval': 'step',
                     'frequency': 1
                 },
@@ -309,6 +313,13 @@ class AutoencoderKL(pl.LightningModule):
             self.monitor = monitor
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
+
+    #     self.
+
+    # def on_train_epoch_end(self):
+    #     # log epoch metric
+    #     self.log('train_acc_epoch', self.accuracy)
+
 
     def init_from_ckpt(self, path, ignore_keys=list()):
         sd = torch.load(path, map_location="cpu")["state_dict"]
@@ -404,9 +415,9 @@ class AutoencoderKL(pl.LightningModule):
         x = x.to(self.device)
         if not only_inputs:
             xrec, posterior = self(x)
-            if x.shape[1] > 3:
+            if x.shape[1] > 4:
                 # colorize with random projection
-                assert xrec.shape[1] > 3
+                assert xrec.shape[1] > 4
                 x = self.to_rgb(x)
                 xrec = self.to_rgb(xrec)
             log["samples"] = self.decode(torch.randn_like(posterior.sample()))
@@ -416,6 +427,13 @@ class AutoencoderKL(pl.LightningModule):
 
     def to_rgb(self, x):
         assert self.image_key == "segmentation"
+        if not hasattr(self, "colorize"):
+            self.register_buffer("colorize", torch.randn(3, x.shape[1], 1, 1).to(x))
+        x = F.conv2d(x, weight=self.colorize)
+        x = 2.*(x-x.min())/(x.max()-x.min()) - 1.
+        return x
+    
+    def to_rgba(self, x):
         if not hasattr(self, "colorize"):
             self.register_buffer("colorize", torch.randn(3, x.shape[1], 1, 1).to(x))
         x = F.conv2d(x, weight=self.colorize)

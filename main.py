@@ -166,7 +166,7 @@ class DataModuleFromConfig(pl.LightningDataModule):
         super().__init__()
         self.batch_size = batch_size
         self.dataset_configs = dict()
-        self.num_workers = 0 # num_workers if num_workers is not None else batch_size * 2
+        self.num_workers = num_workers if num_workers is not None else batch_size * 2
         self.use_worker_init_fn = use_worker_init_fn
         if train is not None:
             self.dataset_configs["train"] = train
@@ -273,7 +273,8 @@ class SetupCallback(Callback):
             print(OmegaConf.to_yaml(self.lightning_config))
             OmegaConf.save(OmegaConf.create({"lightning": self.lightning_config}),
                            os.path.join(self.cfgdir, "{}-lightning.yaml".format(self.now)))
-            trainer.save_checkpoint(os.path.join(self.ckptdir, "epoch-1.ckpt"))
+            if not self.resume:
+                trainer.save_checkpoint(os.path.join(self.ckptdir, "epoch-1.ckpt"))
 
         else:
             # ModelCheckpoint callback created log directory --- remove it
@@ -664,7 +665,14 @@ if __name__ == "__main__":
 
         trainer_kwargs["callbacks"] = [instantiate_from_config(callbacks_cfg[k]) for k in callbacks_cfg]
 
+
+
+
+
         #endregion
+
+
+
 
         trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
         trainer.logdir = logdir  ###

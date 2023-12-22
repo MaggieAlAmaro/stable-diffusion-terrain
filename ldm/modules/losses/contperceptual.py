@@ -79,6 +79,7 @@ class LPIPSWithDiscriminator(nn.Module):
             else:
                 d_weight = torch.tensor(0.0)
 
+            #returns 0 if currentstep is less then step to start discriminator
             disc_factor = adopt_weight(self.disc_factor, global_step, threshold=self.discriminator_iter_start)
             loss = weighted_nll_loss + self.kl_weight * kl_loss + d_weight * disc_factor * g_loss
 
