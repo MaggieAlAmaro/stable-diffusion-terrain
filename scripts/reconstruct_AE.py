@@ -33,6 +33,17 @@ def custom_to_pil(x):
         x = x.convert("RGB")
     return x
 
+def custom_to_pilRGBA(x):
+    x = x.detach().cpu()
+    x = torch.clamp(x, -1., 1.)
+    x = (x + 1.) / 2.
+    x = x.permute(1, 2, 0).numpy()
+    x = (255 * x).astype(np.uint8)
+    x = Image.fromarray(x)
+    if not x.mode == "RGBA":
+        x = x.convert("RGBA")
+    return x
+
 def custom_to_pilGS(x):
     x = x.detach().cpu()
     x = torch.clamp(x, -1., 1.)
@@ -167,6 +178,8 @@ def save_logs(logs, path, n_saved=0, key="sample", np_path=None):
                 for x in batch:
                     if x.shape[0] == 1:
                         img = custom_to_pilGS(x)
+                    elif x.shape[0] == 4:
+                        img = custom_to_pilRGBA(x)
                     else:
                         img = custom_to_pil(x)
                     imgpath = os.path.join(path, f"{key}_{n_saved:06}.png")
@@ -275,7 +288,13 @@ if __name__ == "__main__":
         logdir = opt.resume.rstrip("/")
         ckpt = os.path.join(logdir, "checkpoints", "last.ckpt")
 
-    base_configs = [os.path.join(logdir, "configs"+os.sep+ os.path.basename(logdir).split("_")[0]+"-project.yaml")]
+    config_path = os.path.join(logdir, "configs")
+    for file in os.listdir(config_path):
+        if file.split("-")[-1] == "project.yaml":
+            base_configs = [os.path.join(config_path, file)]
+            break
+
+    #base_configs = [os.path.join(logdir, "configs"+os.sep+ os.path.basename(logdir)]
     
     opt.base = base_configs
 

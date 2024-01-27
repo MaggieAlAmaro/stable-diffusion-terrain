@@ -38,6 +38,7 @@ class LPIPSWithDiscriminator(nn.Module):
             g_grads = torch.autograd.grad(g_loss, self.last_layer[0], retain_graph=True)[0]
 
         d_weight = torch.norm(nll_grads) / (torch.norm(g_grads) + 1e-4)
+        # WEIGHT IS ALWAYS AT MAX FROM CLAMP
         d_weight = torch.clamp(d_weight, 0.0, 1e4).detach()
         d_weight = d_weight * self.discriminator_weight
         return d_weight
@@ -45,14 +46,26 @@ class LPIPSWithDiscriminator(nn.Module):
     def forward(self, inputs, reconstructions, posteriors, optimizer_idx,
                 global_step, last_layer=None, cond=None, split="train",
                 weights=None):
-        rec_loss = torch.abs(inputs.contiguous() - reconstructions.contiguous())
+        
+
+        #l1 loss
+        # rec_loss = torch.abs(inputs.contiguous() - reconstructions.contiguous())
+        
+        #weighted alpha channel
+        alpha_loss = torch.abs(inputs.contiguous()[:,3,:,:] - reconstructions.contiguous()[:,3,:,:])
+        rgb_loss = torch.abs(inputs.contiguous()[:,:2,:,:] - reconstructions.contiguous()[:,:2,:,:])
+        # rec_loss = 0.5*alpha_loss + 0.5*rgb_loss
+        rec_loss = alpha_loss 
+
+
         if self.perceptual_weight > 0:
             p_loss = self.perceptual_loss(inputs.contiguous(), reconstructions.contiguous())
             rec_loss = rec_loss + self.perceptual_weight * p_loss
 
         nll_loss = rec_loss / torch.exp(self.logvar) + self.logvar
         weighted_nll_loss = nll_loss
-        if weights is not None:
+
+        if weights is not None: # NOT ENTERING
             weighted_nll_loss = weights*nll_loss
         weighted_nll_loss = torch.sum(weighted_nll_loss) / weighted_nll_loss.shape[0]
         nll_loss = torch.sum(nll_loss) / nll_loss.shape[0]
