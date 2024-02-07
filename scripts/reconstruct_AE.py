@@ -6,7 +6,7 @@ from tqdm import trange
 import tqdm 
 import torchvision
 
-from taming.data.terrain import TerrainGSTrain
+from ldm.data.terrain import TerrainGSTrain
 # from taming.data.faceshq import TerrainTrain, CelebAHQTrain, TerrainGSTrain
 from pytorch_lightning import seed_everything 
 from torch.utils.data import  DataLoader, Dataset
