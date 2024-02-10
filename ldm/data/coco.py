@@ -48,9 +48,9 @@ class CocoBase(Dataset):
                                             "captions_val2017.json"]
         if self.stuffthing:
             self.segmentation_prefix = (
-                "data/cocostuffthings/val2017" if
+                "data/coco/val2017" if
                 data_json.endswith("captions_val2017.json") else
-                "data/cocostuffthings/train2017")
+                "data/coco/train2017")
         else:
             self.segmentation_prefix = (
                 "data/coco/annotations/stuff_val2017_pixelmaps" if
@@ -81,9 +81,10 @@ class CocoBase(Dataset):
             self.cropper = albumentations.CenterCrop(height=self.crop_size, width=self.crop_size)
         else:
             self.cropper = albumentations.RandomCrop(height=self.crop_size, width=self.crop_size)
+
         self.preprocessor = albumentations.Compose(
-            [self.rescaler, self.cropper],
-            additional_targets={"segmentation": "image"})
+            [self.rescaler, self.cropper])
+            # additional_targets={"segmentation": "image"})
         if force_no_crop:
             self.rescaler = albumentations.Resize(height=self.size, width=self.size)
             self.preprocessor = albumentations.Compose(
@@ -93,56 +94,59 @@ class CocoBase(Dataset):
     def __len__(self):
         return len(self.labels["image_ids"])
 
-    def preprocess_image(self, image_path, segmentation_path):
+    def preprocess_image(self, image_path):#, segmentation_path):
         image = Image.open(image_path)
         if not image.mode == "RGB":
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
 
-        segmentation = Image.open(segmentation_path)
-        if not self.onehot and not segmentation.mode == "RGB":
-            segmentation = segmentation.convert("RGB")
-        segmentation = np.array(segmentation).astype(np.uint8)
-        if self.onehot:
-            assert self.stuffthing
-            # stored in caffe format: unlabeled==255. stuff and thing from
-            # 0-181. to be compatible with the labels in
-            # https://github.com/nightrome/cocostuff/blob/master/labels.txt
-            # we shift stuffthing one to the right and put unlabeled in zero
-            # as long as segmentation is uint8 shifting to right handles the
-            # latter too
-            assert segmentation.dtype == np.uint8
-            segmentation = segmentation + 1
+        # segmentation = Image.open(segmentation_path)
+        # if not self.onehot and not segmentation.mode == "RGB":
+        #     segmentation = segmentation.convert("RGB")
+        # segmentation = np.array(segmentation).astype(np.uint8)
+        # if self.onehot:
+        #     assert self.stuffthing
+        #     # stored in caffe format: unlabeled==255. stuff and thing from
+        #     # 0-181. to be compatible with the labels in
+        #     # https://github.com/nightrome/cocostuff/blob/master/labels.txt
+        #     # we shift stuffthing one to the right and put unlabeled in zero
+        #     # as long as segmentation is uint8 shifting to right handles the
+        #     # latter too
+        #     assert segmentation.dtype == np.uint8
+        #     segmentation = segmentation + 1
 
-        processed = self.preprocessor(image=image, segmentation=segmentation)
-        image, segmentation = processed["image"], processed["segmentation"]
+        # processed = self.preprocessor(image=image, segmentation=segmentation)
+        # image, segmentation = processed["image"], processed["segmentation"]
+        processed = self.preprocessor(image=image)
+        image = processed["image"]
         image = (image / 127.5 - 1.0).astype(np.float32)
 
-        if self.onehot:
-            assert segmentation.dtype == np.uint8
-            # make it one hot
-            n_labels = 183
-            flatseg = np.ravel(segmentation)
-            onehot = np.zeros((flatseg.size, n_labels), dtype=np.bool)
-            onehot[np.arange(flatseg.size), flatseg] = True
-            onehot = onehot.reshape(segmentation.shape + (n_labels,)).astype(int)
-            segmentation = onehot
-        else:
-            segmentation = (segmentation / 127.5 - 1.0).astype(np.float32)
-        return image, segmentation
+        # if self.onehot:
+        #     assert segmentation.dtype == np.uint8
+        #     # make it one hot
+        #     n_labels = 183
+        #     flatseg = np.ravel(segmentation)
+        #     onehot = np.zeros((flatseg.size, n_labels), dtype=np.bool)
+        #     onehot[np.arange(flatseg.size), flatseg] = True
+        #     onehot = onehot.reshape(segmentation.shape + (n_labels,)).astype(int)
+        #     segmentation = onehot
+        # else:
+        #     segmentation = (segmentation / 127.5 - 1.0).astype(np.float32)
+        return image#, segmentation
 
     def __getitem__(self, i):
         img_path = self.img_id_to_filepath[self.labels["image_ids"][i]]
-        seg_path = self.img_id_to_segmentation_filepath[self.labels["image_ids"][i]]
-        image, segmentation = self.preprocess_image(img_path, seg_path)
+        # seg_path = self.img_id_to_segmentation_filepath[self.labels["image_ids"][i]]
+        # image, segmentation = self.preprocess_image(img_path, seg_path)
+        image = self.preprocess_image(img_path)
         captions = self.img_id_to_captions[self.labels["image_ids"][i]]
         # randomly draw one of all available captions per image
         caption = captions[np.random.randint(0, len(captions))]
         example = {"image": image,
-                   "caption": [str(caption[0])],
-                   "segmentation": segmentation,
+                   "caption": str(caption[0]),
+                #    "segmentation": segmentation,
                    "img_path": img_path,
-                   "seg_path": seg_path,
+                #    "seg_path": seg_path,
                    "filename_": img_path.split(os.sep)[-1]
                     }
         return example
