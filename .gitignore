@@ -3,5 +3,7 @@ __pycache__
 logs/*
 data/*
 src/*
+models/*
+outputs/*
 configs/first_stage_models/
 latent_diffusion.egg-info
