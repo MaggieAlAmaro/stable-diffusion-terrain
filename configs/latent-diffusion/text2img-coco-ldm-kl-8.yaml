@@ -78,7 +78,7 @@ data:
   target: main.DataModuleFromConfig
   params:
     batch_size: 4 #48
-    num_workers: 4
+    num_workers: 0
     wrap: True
     train:
       target: ldm.data.coco.CocoImagesAndCaptionsTrain
@@ -95,7 +95,7 @@ lightning:
     image_logger:
       target: main.ImageLogger
       params:
-        batch_frequency: 10000
+        batch_frequency: 20000
         max_images: 4
         increase_log_steps: False
-        log_first_step: True
+        # log_first_step: True

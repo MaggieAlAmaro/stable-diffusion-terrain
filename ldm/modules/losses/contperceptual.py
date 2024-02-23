@@ -53,10 +53,17 @@ class LPIPSWithDiscriminator(nn.Module):
         # rec_loss = torch.abs(inputs.contiguous() - reconstructions.contiguous())
         
         #weighted alpha channel
-        alpha_loss = torch.abs(inputs.contiguous()[:,3,:,:] - reconstructions.contiguous()[:,3,:,:])
-        rgb_loss = torch.abs(inputs.contiguous()[:,:2,:,:] - reconstructions.contiguous()[:,:2,:,:])
-        # rec_loss = 0.5*alpha_loss + 0.5*rgb_loss
-        rec_loss = alpha_loss 
+        alpha_loss = torch.abs(inputs.contiguous()[:,[3],:,:] - reconstructions.contiguous()[:,[3],:,:])
+        rgb_loss = torch.abs(inputs.contiguous()[:,:3,:,:] - reconstructions.contiguous()[:,:3,:,:])
+        weighted_rgb_loss = 0.5 * rgb_loss
+        weighted_alpha_loss = 0.5 * alpha_loss
+
+        #rec_loss = weighted_rgb_loss + weighted_alpha_loss     !!! Not the same shape
+        loss_vector = [ weighted_rgb_loss,weighted_alpha_loss]
+        rec_loss = torch.cat(loss_vector, dim=1)
+
+        #Only alpha channel
+        # rec_loss = alpha_loss 
 
 
         if self.perceptual_weight > 0:
