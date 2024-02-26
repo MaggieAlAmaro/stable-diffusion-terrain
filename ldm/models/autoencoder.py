@@ -399,8 +399,8 @@ class AutoencoderKL(pl.LightningModule):
         opt_ae = torch.optim.Adam(list(self.encoder.parameters())+
                                   list(self.decoder.parameters())+
                                   list(self.quant_conv.parameters())+
-                                  list(self.post_quant_conv.parameters()) +
-                                 list(self.loss.perceptual_loss.parameters()),
+                                  list(self.post_quant_conv.parameters()) , # +
+                                #  list(self.loss.perceptual_loss.parameters()),
                                   lr=lr, betas=(0.5, 0.9))
         opt_disc = torch.optim.Adam(self.loss.discriminator.parameters(),
                                     lr=lr, betas=(0.5, 0.9))

@@ -32,15 +32,11 @@ data:
     num_workers: 2 
     wrap: True
     train:
-      target: ldm.data.terrain.TestRGBATrain
+      target: ldm.data.terrain.TerrainRGBATrain
       params:
         size: 256
     validation:
-      target: ldm.data.terrain.TestRGBAValidation
-      params:
-        size: 256
-    test:
-      target: ldm.data.terrain.TestRGBATest
+      target: ldm.data.terrain.TerrainRGBAValidation
       params:
         size: 256
 

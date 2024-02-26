@@ -3,7 +3,8 @@ import numpy as np
 import albumentations
 from torch.utils.data import Dataset
 
-from taming.data.base import ImagePaths, NumpyPaths, ConcatDatasetWithIndex
+from ldm.data.base import ImagePaths
+# from taming.data.base import ImagePaths, NumpyPaths, ConcatDatasetWithIndex
 
 
 class TerrainBase(Dataset):

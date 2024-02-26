@@ -25,12 +25,11 @@ model:
       attn_resolutions: [ ]
       dropout: 0.0
 
-
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 2 #12
-    num_workers: 1 
+    batch_size: 2
+    num_workers: 2
     wrap: True
     train:
       target: ldm.data.terrain.TerrainRGBATrain
@@ -48,7 +47,7 @@ lightning:
     image_logger:
       target: main.ImageLogger
       params:
-        batch_frequency: 10000
+        batch_frequency: 20000
         max_images: 8
         increase_log_steps: True
 
