@@ -333,7 +333,12 @@ if __name__ == "__main__":
         yaml.dump(sampling_conf, f, default_flow_style=False)
     print(sampling_conf)
 
-    dataset = instantiate_from_config(config['data']['params']['validation'])
+    try:
+        dataset = instantiate_from_config(config['data']['params']['test'])
+        print("Using test set.")
+    except:
+        print("Couldn't find test set. Using validation set.")
+        dataset = instantiate_from_config(config['data']['params']['validation'])
 
 
     run(model, dataset, imglogdir, n_samples=opt.n_samples,

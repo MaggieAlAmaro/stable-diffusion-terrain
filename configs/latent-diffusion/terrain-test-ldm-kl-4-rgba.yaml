@@ -56,21 +56,21 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 4 #48
-    num_workers: 1
+    batch_size: 2 
+    num_workers: 4
     wrap: True
     train:
-      target: taming.data.terrain.TerrainRGBATrain
+      target: ldm.data.terrain.TestRGBATrain
       params:
         size: 256
         augment: True
     validation:
-      target: taming.data.terrain.TerrainRGBAValidation
+      target: ldm.data.terrain.TestRGBAValidation
       params:
         size: 256
         augment: True
     test:
-      target: ldm.data.terrain.TerrainRGBATest
+      target: ldm.data.terrain.TestRGBATest
       params:
         size: 256
 
@@ -79,7 +79,7 @@ lightning:
     image_logger:
       target: main.ImageLogger
       params:
-        batch_frequency: 10000
+        batch_frequency: 20
         max_images: 8
         increase_log_steps: False
         log_first_step: True

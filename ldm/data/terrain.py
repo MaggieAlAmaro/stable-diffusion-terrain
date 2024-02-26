@@ -65,6 +65,60 @@ class TerrainRGBAValidation(TerrainBase):
         #self.data = NumpyPaths(paths=paths, size=size, random_crop=False)
         self.keys = keys
 
+class TerrainRGBATest(TerrainBase):
+    def __init__(self, size, augment= None, keys=None):
+        super().__init__(augment=augment)
+        root = "data/RGBAv4_NewExpMean_FullData"
+        with open("data/RGBA_test.txt", "r") as f:
+        # root = "data/terrainTrain"
+        # with open("data/newEurope_validation.txt", "r") as f:
+            relpaths = f.read().splitlines()
+        paths = [os.path.join(root, relpath) for relpath in relpaths]
+        self.data = ImagePaths(paths=paths, size=size, random_crop=False, rgba=True)#,grayscale=True)
+        #self.data = NumpyPaths(paths=paths, size=size, random_crop=False)
+        self.keys = keys
+
+
+
+
+####### TEST SET
+        
+        
+class TestRGBATrain(TerrainBase):
+    def __init__(self, size,augment= None, keys=None):
+        super().__init__(augment=augment)
+        root = "data/terrainTinyRGBA"
+        with open("data/tinyRGBA_train.txt", "r") as f:
+            relpaths = f.read().splitlines()
+        paths = [os.path.join(root, relpath) for relpath in relpaths]
+        self.data = ImagePaths(paths=paths, size=size, random_crop=False, rgba=True)#, grayscale=True)
+        #self.data = NumpyPaths(paths=paths, size=size, random_crop=False)
+        self.keys = keys
+
+class TestRGBAValidation(TerrainBase):
+    def __init__(self, size, augment= None,keys=None):
+        super().__init__(augment=augment)
+        root = "data/terrainTinyRGBA"
+        with open("data/tinyRGBA_validation.txt", "r") as f:
+            relpaths = f.read().splitlines()
+        paths = [os.path.join(root, relpath) for relpath in relpaths]
+        self.data = ImagePaths(paths=paths, size=size, random_crop=False, rgba=True)#,grayscale=True)
+        #self.data = NumpyPaths(paths=paths, size=size, random_crop=False)
+        self.keys = keys
+
+class TestRGBATest(TerrainBase):
+    def __init__(self, size, augment= None, keys=None):
+        super().__init__(augment=augment)
+        root = "data/terrainTinyRGBA"
+        with open("data/tinyRGBA_test.txt", "r") as f:
+        # root = "data/terrainTrain"
+        # with open("data/newEurope_validation.txt", "r") as f:
+            relpaths = f.read().splitlines()
+        paths = [os.path.join(root, relpath) for relpath in relpaths]
+        self.data = ImagePaths(paths=paths, size=size, random_crop=False, rgba=True)#,grayscale=True)
+        #self.data = NumpyPaths(paths=paths, size=size, random_crop=False)
+        self.keys = keys
+
 
 
 
