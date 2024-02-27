@@ -28,7 +28,7 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 4
+    batch_size: 2
     num_workers: 2 
     wrap: True
     train:
@@ -37,6 +37,10 @@ data:
         size: 256
     validation:
       target: ldm.data.terrain.TerrainRGBAValidation
+      params:
+        size: 256
+    test:
+      target: ldm.data.terrain.TerrainRGBATest
       params:
         size: 256
 

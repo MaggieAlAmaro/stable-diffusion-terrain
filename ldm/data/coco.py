@@ -151,8 +151,8 @@ class CocoBase(Dataset):
         img_path = self.img_id_to_filepath[self.labels["image_ids"][i]]
 
         seg_path = self.img_id_to_segmentation_filepath[self.labels["image_ids"][i]]
-        image, segmentation = self.preprocess_image(img_path, seg_path)
-        image = self.preprocess_image(img_path)
+        image, segmentation = self.preprocess_image_w_segmentation(img_path, seg_path)
+        #image = self.preprocess_image(img_path)
         captions = self.img_id_to_captions[self.labels["image_ids"][i]]
         # randomly draw one of all available captions per image
         caption = captions[np.random.randint(0, len(captions))]
