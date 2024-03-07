@@ -127,7 +127,7 @@ def sample(model, batch):
     print(f'Throughput for this batch: {log["throughput"]}')
     return log
 
-def run(model, dataset, logdir, n_samples=20,batch_size=10, nplog=None):
+def run(model, dataset, inputsLog, reconstructionsLog, n_samples=20,batch_size=10, nplog=None):
     print(f' Sampling')
     tstart = time.time()
 
@@ -150,8 +150,8 @@ def run(model, dataset, logdir, n_samples=20,batch_size=10, nplog=None):
         #     dataloader_iterator = iter(data_loader)
         #     batch = next(dataloader_iterator)
         logs = sample(model,batch)
-        n_saved_in = save_logs(logs, logdir, n_saved=n_saved_in, key="inputs")
-        n_saved_rec = save_logs(logs, logdir, n_saved=n_saved_rec, key="reconstructions")
+        n_saved_in = save_logs(logs, inputsLog, n_saved=n_saved_in, key="inputs")
+        n_saved_rec = save_logs(logs, reconstructionsLog, n_saved=n_saved_rec, key="reconstructions")
         #n_saved_z = save_logs(logs, logdir, n_saved=n_saved_z, key="samples")
 
         # all_images.extend([custom_to_np(logs["samples"])])
@@ -317,10 +317,14 @@ if __name__ == "__main__":
     print(75 * "=")
     print("logging to:")
     logdir = os.path.join(logdir, "samples", now)
-    imglogdir = os.path.join(logdir, "img")
     numpylogdir = os.path.join(logdir, "numpy")
 
-    os.makedirs(imglogdir)
+    # imglogdir = os.path.join(logdir, "img")
+    # os.makedirs(imglogdir)
+    reconstructionsLog = os.path.join(logdir, "reconstructions")
+    inputsLog = os.path.join(logdir, "inputs")
+    os.makedirs(reconstructionsLog)
+    os.makedirs(inputsLog)
     os.makedirs(numpylogdir)
     print(logdir)
     print(75 * "=")
@@ -341,7 +345,7 @@ if __name__ == "__main__":
         dataset = instantiate_from_config(config['data']['params']['validation'])
 
 
-    run(model, dataset, imglogdir, n_samples=opt.n_samples,
+    run(model, dataset, inputsLog, reconstructionsLog, n_samples=opt.n_samples,
         batch_size=opt.batch_size, nplog=numpylogdir)
 
     print("done.")
