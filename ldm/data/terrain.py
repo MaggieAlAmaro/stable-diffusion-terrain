@@ -79,6 +79,119 @@ class TerrainRGBATest(TerrainBase):
         #self.data = NumpyPaths(paths=paths, size=size, random_crop=False)
         self.keys = keys
 
+###### Segmentation SET
+from PIL import Image        
+
+class TerrainSegmentationBase(Dataset):
+    def __init__(self, *args, **kwargs):
+        self.data = dict()
+        self.keys = dict()
+        self.augment = kwargs.get('augment', False)
+        self.rgba = kwargs.get('rgba', False)
+        self.grayscale = kwargs.get('grayscale', False)
+        self.transform = self.getAugmentTransform() if self.augment else None
+            
+
+    def getAugmentTransform(self):
+        transform = albumentations.Compose([
+            albumentations.OneOf([
+                albumentations.HorizontalFlip(p=1),
+                albumentations.VerticalFlip(p=1),
+            ], p=0.5),
+            albumentations.RandomRotate90(p=0.5),
+            ]
+        )
+        return transform
+
+    def __len__(self):
+        return len(self.data['image'])
+
+    def preprocess_images(self, image_path, segment_path):
+        image = Image.open(image_path)
+        if self.grayscale == True:
+            if not image.mode == "L":
+                image = image.convert("L")
+        elif self.rgba == True:
+            if not image.mode == "RGBA":
+                image = image.convert("RGBA")
+        elif not image.mode == "RGB":
+            image = image.convert("RGB")
+
+        image = np.array(image).astype(np.uint8)
+
+
+        #segmentation is assumed to be RGB !!!!! TESTING WITH RGBA
+
+        segmentImg = Image.open(segment_path)
+        if self.rgba == True:
+            if not segmentImg.mode == "RGBA":
+                segmentImg = segmentImg.convert("RGBA")
+        segmentation = np.array(segmentImg).astype(np.uint8)
+
+        if self.transform:
+            processed = self.transform(image=image, segmentation=segmentation)
+            image, segmentation = processed["image"], processed["segmentation"]
+        image = (image/127.5 - 1.0).astype(np.float32)
+        segmentation = (segmentation / 127.5 - 1.0).astype(np.float32)
+
+        return image, segmentation
+    
+    def __getitem__(self, i):
+        img_path = self.data['image'][i]
+        seg_path = self.data['segmentation'][i]
+        image, segmentation = self.preprocess_images(img_path,seg_path)
+        example = {
+            "image": image,
+            "segmentation": segmentation
+        }
+        return example
+
+from torch.utils.data import Dataset
+
+class TerrainSegmentationTrain(TerrainSegmentationBase):
+    def __init__(self, size, augment= None, rgba=False, grayscale=False, keys=None):
+        super().__init__(augment=augment,rgba=rgba,grayscale=grayscale)
+        root = "data/RGBAv4_NewExpMean_FullData"
+        segmentationRoot = "data/RGBAv4_NewExpMean_FullData"
+        with open("data/RGBA_train.txt", "r") as f:
+            relpaths = f.read().splitlines()
+        # for relpath in relpaths:
+        #     blah = os.path.join(segmentationRoot, relpath).append
+        #     blahnal = os.path.join(root, relpath).append
+        paths = [os.path.join(root, relpath) for relpath in relpaths]
+        segPaths = [os.path.join(segmentationRoot, relpath) for relpath in relpaths]
+        self.data['image'] = paths 
+        self.data['segmentation'] = segPaths
+        self.keys = ['image','segmentation']
+
+    
+
+class TerrainSegmentationValidation(TerrainSegmentationBase):
+    def __init__(self, size, augment= None, rgba=False, grayscale=False,keys=None):
+        super().__init__(augment=augment,rgba=rgba,grayscale=grayscale)
+        root = "data/RGBAv4_NewExpMean_FullData"
+        segmentationRoot = "data/RGBAv4_NewExpMean_FullData"
+        with open("data/RGBA_validation.txt", "r") as f:
+            relpaths = f.read().splitlines()
+        paths = [os.path.join(root, relpath) for relpath in relpaths]
+        segPaths = [os.path.join(segmentationRoot, relpath) for relpath in relpaths]
+        self.data['image'] = paths 
+        self.data['segmentation'] = segPaths
+        self.keys = ['image','segmentation']
+
+
+class TerrainSegmentationTest(TerrainSegmentationBase):
+    def __init__(self, size, augment= None, rgba=False, grayscale=False, keys=None):
+        super().__init__(augment=augment,rgba=rgba,grayscale=grayscale)
+        root = "data/RGBAv4_NewExpMean_FullData"
+        segmentationRoot = "data/RGBAv4_NewExpMean_FullData"
+        with open("data/RGBA_test.txt", "r") as f:
+            relpaths = f.read().splitlines()
+        paths = [os.path.join(root, relpath) for relpath in relpaths]
+        segPaths = [os.path.join(segmentationRoot, relpath) for relpath in relpaths]
+        self.data['image'] = paths 
+        self.data['segmentation'] = segPaths
+        self.keys = ['image','segmentation']
 
 
 

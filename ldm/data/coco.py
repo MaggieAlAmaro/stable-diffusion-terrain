@@ -130,8 +130,6 @@ class CocoBase(Dataset):
 
         processed = self.preprocessor(image=image, segmentation=segmentation)
         image, segmentation = processed["image"], processed["segmentation"]
-        processed = self.preprocessor(image=image)
-        image = processed["image"]
         image = (image / 127.5 - 1.0).astype(np.float32)
 
         if self.onehot:
@@ -148,6 +146,7 @@ class CocoBase(Dataset):
         return image, segmentation
 
     def __getitem__(self, i):
+        ##TODO what is i
         img_path = self.img_id_to_filepath[self.labels["image_ids"][i]]
 
         seg_path = self.img_id_to_segmentation_filepath[self.labels["image_ids"][i]]
