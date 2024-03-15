@@ -666,10 +666,10 @@ if __name__ == "__main__":
 
         trainer_kwargs["callbacks"] = [instantiate_from_config(callbacks_cfg[k]) for k in callbacks_cfg]
 
-        trainer_kwargs["profiler"] = PyTorchProfiler(
-            trace_memory=True,  with_flops=True, profile_memory=True,
-              schedule=torch.profiler.schedule(wait=0,warmup=3,active=10, repeat=3) )
-        # trainer_kwargs['max_epochs'] = 25
+        # trainer_kwargs["profiler"] = PyTorchProfiler(
+        #     trace_memory=True,  with_flops=True, profile_memory=True,
+        #       schedule=torch.profiler.schedule(wait=0,warmup=3,active=10, repeat=3) )
+        # # trainer_kwargs['max_epochs'] = 25
 
 
 

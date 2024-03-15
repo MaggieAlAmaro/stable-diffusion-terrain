@@ -96,6 +96,16 @@ def load_replacement(x):
 #     return x_checked_image, has_nsfw_concept
 
 
+
+def get_input(batch, k):
+    x = batch[k]
+    if len(x.shape) == 3:
+        # x = x[..., None]   # THIS IS BAKCWARDS?
+        x = x[None, ...]   # THIS IS BAKCWARDS?
+    x = rearrange(x, 'b h w c -> b c h w') #batch height width channels
+    x = x.to(memory_format=torch.contiguous_format).float()
+    return x
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -196,9 +206,10 @@ def main():
         help="unconditional guidance scale: eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))",
     )
     parser.add_argument(
-        "--from-file",
+        "--from-folder",
         type=str,
-        help="if specified, load prompts from this file",
+        nargs="?",
+        help="if specified, load conditioning from this directory",
     )
     parser.add_argument(
         "--config",
@@ -269,18 +280,38 @@ def main():
         start_code = torch.randn([opt.n_samples, opt.C, opt.H // opt.f, opt.W // opt.f], device=device)
 
 
+    if opt.from_folder:
+        files = os.listdir(opt.from_folder)
+        segPaths = [os.path.join(opt.from_folder, relpath) for relpath in files]
+
+        dataArr = []
+        for img in segPaths:
+            segmentImg = Image.open(img)
+            if not segmentImg.mode == "RGB":
+                segmentImg = segmentImg.convert("RGB")
+            segmentation = np.array(segmentImg).astype(np.uint8)
+            segmentation = (segmentation / 127.5 - 1.0).astype(np.float32)
 
 
-    try:
-        dataset = instantiate_from_config(config['data']['params']['test'])
-        print("Using test set.")
-    except:
-        print("Couldn't find test set. Using validation set.")
-        dataset = instantiate_from_config(config['data']['params']['validation'])
+            data = {}
+            data['segmentation'] = torch.from_numpy(segmentation)
+            dataArr.append(data)
+            # data['segmentation'].append(segmentation)
+        dataloader_iterator = iter(dataArr)
+        data_range = len(dataArr)
 
-    data_loader = DataLoader(dataset, batch_size=batch_size,#batch_size=batch_size,
-                          num_workers=0, shuffle=True)
-    dataloader_iterator = iter(data_loader)
+    else:
+        try:
+            dataset = instantiate_from_config(config['data']['params']['test'])
+            print("Using test set.")
+        except:
+            print("Couldn't find test set. Using validation set.")
+            dataset = instantiate_from_config(config['data']['params']['validation'])
+
+        data_loader = DataLoader(dataset, batch_size=batch_size,#batch_size=batch_size,
+                            num_workers=0, shuffle=True)
+        dataloader_iterator = iter(data_loader)
+        data_range = len(dataset)
 
     precision_scope = autocast if opt.precision=="autocast" else nullcontext
     with torch.no_grad():
@@ -288,9 +319,11 @@ def main():
             with model.ema_scope():
                 tic = time.time()
                 all_samples = list()
-                for n in trange(len(dataset)//opt.n_samples, desc="Sampling"): #trange(opt.n_iter, desc="Sampling"):
+                for n in trange(data_range, desc="Sampling"): #trange(opt.n_iter, desc="Sampling"):
                     batch = next(dataloader_iterator)
-                    x, c = model.get_input(batch, 'image')
+                    # x, c = model.get_input(batch, 'image')
+                    c = get_input(batch, 'segmentation').to(model.device)
+
                     # for prompts in tqdm(data, desc="data"):
                     c = model.get_learned_conditioning(c)
                     shape = [opt.C, opt.H // opt.f, opt.W // opt.f]
@@ -313,8 +346,9 @@ def main():
                     if not opt.skip_save:
                         for x_sample in x_checked_image_torch:
                             x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
-                            img = Image.fromarray(x_sample.astype(np.uint8))
-                            img = put_watermark(img, wm_encoder)
+                            #IN MY CASE IT IS 4 CHANNEL
+                            img = Image.fromarray(x_sample.astype(np.uint8),"RGBA")
+                            # img = put_watermark(img, wm_encoder)
                             img.save(os.path.join(sample_path, f"{base_count:05}.png"))
                             base_count += 1
 

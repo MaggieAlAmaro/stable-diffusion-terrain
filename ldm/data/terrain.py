@@ -120,12 +120,10 @@ class TerrainSegmentationBase(Dataset):
         image = np.array(image).astype(np.uint8)
 
 
-        #segmentation is assumed to be RGB !!!!! TESTING WITH RGBA
-
+        #segmentation is assumed to be RGB !!!!!
         segmentImg = Image.open(segment_path)
-        if self.rgba == True:
-            if not segmentImg.mode == "RGBA":
-                segmentImg = segmentImg.convert("RGBA")
+        if not segmentImg.mode == "RGB":
+            segmentImg = segmentImg.convert("RGB")
         segmentation = np.array(segmentImg).astype(np.uint8)
 
         if self.transform:
@@ -152,8 +150,8 @@ class TerrainSegmentationTrain(TerrainSegmentationBase):
     def __init__(self, size, augment= None, rgba=False, grayscale=False, keys=None):
         super().__init__(augment=augment,rgba=rgba,grayscale=grayscale)
         root = "data/RGBAv4_NewExpMean_FullData"
-        segmentationRoot = "data/RGBAv4_NewExpMean_FullData"
-        with open("data/RGBA_train.txt", "r") as f:
+        segmentationRoot = "data/RGBA-Mask"
+        with open("data/mask_train.txt", "r") as f:
             relpaths = f.read().splitlines()
         # for relpath in relpaths:
         #     blah = os.path.join(segmentationRoot, relpath).append
@@ -170,8 +168,8 @@ class TerrainSegmentationValidation(TerrainSegmentationBase):
     def __init__(self, size, augment= None, rgba=False, grayscale=False,keys=None):
         super().__init__(augment=augment,rgba=rgba,grayscale=grayscale)
         root = "data/RGBAv4_NewExpMean_FullData"
-        segmentationRoot = "data/RGBAv4_NewExpMean_FullData"
-        with open("data/RGBA_validation.txt", "r") as f:
+        segmentationRoot = "data/RGBA-Mask"
+        with open("data/mask_validation.txt", "r") as f:
             relpaths = f.read().splitlines()
         paths = [os.path.join(root, relpath) for relpath in relpaths]
         segPaths = [os.path.join(segmentationRoot, relpath) for relpath in relpaths]
@@ -184,8 +182,8 @@ class TerrainSegmentationTest(TerrainSegmentationBase):
     def __init__(self, size, augment= None, rgba=False, grayscale=False, keys=None):
         super().__init__(augment=augment,rgba=rgba,grayscale=grayscale)
         root = "data/RGBAv4_NewExpMean_FullData"
-        segmentationRoot = "data/RGBAv4_NewExpMean_FullData"
-        with open("data/RGBA_test.txt", "r") as f:
+        segmentationRoot = "data/RGBA-Mask"
+        with open("data/mask_test.txt", "r") as f:
             relpaths = f.read().splitlines()
         paths = [os.path.join(root, relpath) for relpath in relpaths]
         segPaths = [os.path.join(segmentationRoot, relpath) for relpath in relpaths]
