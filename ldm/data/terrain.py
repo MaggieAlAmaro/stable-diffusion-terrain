@@ -10,8 +10,8 @@ from ldm.data.base import ImagePaths
 class TerrainBase(Dataset):
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self.data = None
-        self.keys = None
+        self.data = None #dict()
+        self.keys = None #dict()
         self.augment = kwargs.get('augment', False)
         self.transform = self.getAugmentTransform() if self.augment else None
             
@@ -261,6 +261,58 @@ class TerrainGSValidation(TerrainBase):
         #self.data = NumpyPaths(paths=paths, size=size, random_crop=False)
         self.keys = keys
 
+##### Caption Set
+import json 
+
+class TerrainCaptionBase(TerrainBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(kwargs=kwargs)
+        self.rgba = kwargs.get('rgba', False)
+        self.grayscale = kwargs.get('grayscale', False)
+        self.captionFilePath = 'data/mask-captions.json'
+        with open(self.captionFilePath) as json_file:
+            self.captionDict = json.load(json_file)
+            
+
+    
+    def __getitem__(self, i):
+        example = self.data[i]
+        caption = self.captionDict[os.path.basename(example)]
+        if self.transform:
+            example['image'] = self.transform(image=example['image'])['image']
+            
+        example['caption'] =  str(caption)
+        return example
 
 
 
+
+class TerrainRGBACaptionTrain(TerrainCaptionBase):
+    def __init__(self, size,augment= None, keys=None,**kwargs):
+        super().__init__(augment=augment, kwargs=kwargs)
+        root = "data/RGBAv4_NewExpMean_FullData"
+        with open("data/mask_train.txt", "r") as f:
+            relpaths = f.read().splitlines()
+        paths = [os.path.join(root, relpath) for relpath in relpaths]
+        self.data = ImagePaths(paths=paths, size=size, random_crop=False, rgba=True)
+        self.keys = keys
+
+class TerrainRGBACaptionValidation(TerrainCaptionBase):
+    def __init__(self, size,augment= None, keys=None,**kwargs):
+        super().__init__(augment=augment, kwargs=kwargs)
+        root = "data/RGBAv4_NewExpMean_FullData"
+        with open("data/mask_validation.txt", "r") as f:
+            relpaths = f.read().splitlines()
+        paths = [os.path.join(root, relpath) for relpath in relpaths]
+        self.data = ImagePaths(paths=paths, size=size, random_crop=False, rgba=True)
+        self.keys = keys
+
+class TerrainRGBACaptionTest(TerrainCaptionBase):
+    def __init__(self, size,augment= None, keys=None,**kwargs):
+        super().__init__(augment=augment, kwargs=kwargs)
+        root = "data/RGBAv4_NewExpMean_FullData"
+        with open("data/mask_test.txt", "r") as f:
+            relpaths = f.read().splitlines()
+        paths = [os.path.join(root, relpath) for relpath in relpaths]
+        self.data = ImagePaths(paths=paths, size=size, random_crop=False, rgba=True)
+        self.keys = keys

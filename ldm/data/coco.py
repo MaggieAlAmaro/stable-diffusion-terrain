@@ -146,7 +146,6 @@ class CocoBase(Dataset):
         return image, segmentation
 
     def __getitem__(self, i):
-        ##TODO what is i
         img_path = self.img_id_to_filepath[self.labels["image_ids"][i]]
 
         seg_path = self.img_id_to_segmentation_filepath[self.labels["image_ids"][i]]
