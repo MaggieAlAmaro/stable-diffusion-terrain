@@ -277,7 +277,7 @@ class TerrainCaptionBase(TerrainBase):
     
     def __getitem__(self, i):
         example = self.data[i]
-        caption = self.captionDict[os.path.basename(example)]
+        caption = self.captionDict[os.path.basename(example['file_path_'])]
         if self.transform:
             example['image'] = self.transform(image=example['image'])['image']
             
