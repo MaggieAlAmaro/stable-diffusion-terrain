@@ -7,7 +7,7 @@ import pytorch_lightning as pl
 
 from packaging import version
 from omegaconf import OmegaConf
-from torch.utils.data import random_split, DataLoader, Dataset, Subset
+from torch.utils.data import random_split, DataLoader, Dataset, Subset, WeightedRandomSampler
 from functools import partial
 from PIL import Image
 
@@ -160,6 +160,8 @@ def worker_init_fn(_):
         return np.random.seed(np.random.get_state()[1][0] + worker_id)
 
 
+import json
+
 class DataModuleFromConfig(pl.LightningDataModule):
     def __init__(self, batch_size, train=None, validation=None, test=None, predict=None,
                  wrap=False, num_workers=None, shuffle_test_loader=False, use_worker_init_fn=False,
@@ -201,7 +203,21 @@ class DataModuleFromConfig(pl.LightningDataModule):
             init_fn = worker_init_fn
         else:
             init_fn = None
-        return DataLoader(self.datasets["train"], batch_size=self.batch_size,
+
+        if 'sampler' in self.dataset_configs['train']:
+            with open(self.dataset_configs['train']['sampler']['weights'], 'r') as f:
+                weightsList = json.load(f)
+
+            weighted_sampler = WeightedRandomSampler(
+                weights=weightsList,
+                num_samples=len(weightsList))
+            
+            return DataLoader(self.datasets["train"], batch_size=self.batch_size, sampler=weighted_sampler,
+                          num_workers=self.num_workers, shuffle=False,
+                          worker_init_fn=init_fn)
+
+        else:
+            return DataLoader(self.datasets["train"], batch_size=self.batch_size,
                           num_workers=self.num_workers, shuffle=False, #if is_iterable_dataset else True,
                           worker_init_fn=init_fn)
 

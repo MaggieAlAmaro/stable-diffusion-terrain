@@ -232,6 +232,11 @@ def get_parser():
         default=42,
         help="the seed (for reproducible sampling)",
     )
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="the model config file",
+    )
     return parser
 
 
@@ -288,11 +293,15 @@ if __name__ == "__main__":
         logdir = opt.resume.rstrip("/")
         ckpt = os.path.join(logdir, "checkpoints", "last.ckpt")
 
-    config_path = os.path.join(logdir, "configs")
-    for file in os.listdir(config_path):
-        if file.split("-")[-1] == "project.yaml":
-            base_configs = [os.path.join(config_path, file)]
-            break
+    if opt.config:
+        base_configs = [opt.config]
+        config_path = os.path.dirname(opt.config)
+    else:
+        config_path = os.path.join(logdir, "configs")
+        for file in os.listdir(config_path):
+            if file.split("-")[-1] == "project.yaml":
+                base_configs = [os.path.join(config_path, file)]
+                break
 
     #base_configs = [os.path.join(logdir, "configs"+os.sep+ os.path.basename(logdir)]
     
