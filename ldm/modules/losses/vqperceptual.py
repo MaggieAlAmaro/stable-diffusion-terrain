@@ -52,11 +52,11 @@ class VQLPIPSWithDiscriminator(nn.Module):
         assert pixel_loss in ["l1", "l2"]
         self.codebook_weight = codebook_weight
         self.pixel_weight = pixelloss_weight
-        if perceptual_loss == "lpips":
-            print(f"{self.__class__.__name__}: Running with LPIPS.")
-            self.perceptual_loss = LPIPS().eval()
-        else:
-            raise ValueError(f"Unknown perceptual loss: >> {perceptual_loss} <<")
+        # if perceptual_loss == "lpips":
+        #     print(f"{self.__class__.__name__}: Running with LPIPS.")
+        #     self.perceptual_loss = LPIPS().eval()
+        # else:
+        #     raise ValueError(f"Unknown perceptual loss: >> {perceptual_loss} <<")
         self.perceptual_weight = perceptual_weight
 
         if pixel_loss == "l1":
