@@ -99,7 +99,8 @@ class TerrainSegmentationBase(Dataset):
                 albumentations.VerticalFlip(p=1),
             ], p=0.5),
             albumentations.RandomRotate90(p=0.5),
-            ]
+            ],
+            additional_targets={'segmentation' : 'image'}
         )
         return transform
 
@@ -263,16 +264,30 @@ class TerrainGSValidation(TerrainBase):
 
 ##### Caption Set
 import json 
-
+from makeCaptions import ShuffleCaptions
 class TerrainCaptionBase(TerrainBase):
     def __init__(self, *args, **kwargs):
         super().__init__(kwargs=kwargs)
         self.rgba = kwargs.get('rgba', False)
         self.grayscale = kwargs.get('grayscale', False)
-        self.captionFilePath = 'data/mask-captions.json'
+        self.captionFilePath = 'data/mask-caption-v2.json'
         with open(self.captionFilePath) as json_file:
             self.captionDict = json.load(json_file)
             
+        self.augment = kwargs.get('augment', False)
+        self.transform = self.getAugmentTransform() if self.augment else None
+            
+
+    def getAugmentTransform(self):
+        transform = albumentations.Compose([
+            albumentations.OneOf([
+                albumentations.HorizontalFlip(p=1),
+                albumentations.VerticalFlip(p=1),
+            ], p=0.5),
+            albumentations.RandomRotate90(p=0.5),
+            ]
+        )
+        return transform
 
     
     def __getitem__(self, i):
@@ -281,7 +296,8 @@ class TerrainCaptionBase(TerrainBase):
         if self.transform:
             example['image'] = self.transform(image=example['image'])['image']
             
-        example['caption'] =  str(caption)
+        example['caption'] =  ShuffleCaptions.shuffleCaptionLabelOrder(str(caption))
+        example["human_label"] = example['caption']
         return example
 
 

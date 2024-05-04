@@ -106,7 +106,7 @@ def get_input(batch, k):
     x = x.to(memory_format=torch.contiguous_format).float()
     return x
 
-def main():
+def parseArguments(myArgs=None):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--outdir",
@@ -140,11 +140,6 @@ def main():
         "--dpm_solver",
         action='store_true',
         help="use dpm_solver sampling",
-    )
-    parser.add_argument(
-        "--laion400m",
-        action='store_true',
-        help="uses the LAION400M model",
     )
     parser.add_argument(
         "--fixed_code",
@@ -190,7 +185,7 @@ def main():
     parser.add_argument(
         "--n_samples",
         type=int,
-        default=3,
+        default=1, #3
         help="how many samples to produce for each given prompt. A.k.a. batch size",
     )
     parser.add_argument(
@@ -207,6 +202,12 @@ def main():
     )
     parser.add_argument(
         "--from-folder",
+        type=str,
+        nargs="?",
+        help="if specified, load conditioning from this directory",
+    )
+    parser.add_argument(
+        "--from-filename",
         type=str,
         nargs="?",
         help="if specified, load conditioning from this directory",
@@ -236,18 +237,187 @@ def main():
         choices=["full", "autocast"],
         default="autocast"
     )
-    opt = parser.parse_args()
+    opt = parser.parse_args(myArgs)
+    return opt
 
-    if opt.laion400m:
-        print("Falling back to LAION 400M model...")
-        opt.config = "configs/latent-diffusion/txt2img-1p4B-eval.yaml"
-        opt.ckpt = "models/ldm/text2img-large/model.ckpt"
-        opt.outdir = "outputs/txt2img-samples-laion400m"
+def load_model_and_sampler(opt):
+    config = OmegaConf.load(f"{opt.config}")
+    model = load_model_from_config(config, f"{opt.ckpt}")
 
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    model = model.to(device)
+
+    print()
+    print("Model Loaded")
+    print()
+
+    if opt.dpm_solver:
+        sampler = DPMSolverSampler(model)
+    elif opt.plms:
+        sampler = PLMSSampler(model)
+    else:
+        sampler = DDIMSampler(model)
+
+    return model, sampler
+
+
+def sampleLoop(opt, model, sampler):
+    print("Sampling with seed:",opt.seed)
+    seed_everything(opt.seed)
+
+    os.makedirs(opt.outdir, exist_ok=True)
+    outpath = opt.outdir
+
+    
+
+    # print("Creating invisible watermark encoder (see https://github.com/ShieldMnt/invisible-watermark)...")
+    # wm = "StableDiffusionV1"
+    # wm_encoder = WatermarkEncoder()
+    # wm_encoder.set_watermark('bytes', wm.encode('utf-8'))
+
+
+
+    batch_size = opt.n_samples
+    n_rows = opt.n_rows if opt.n_rows > 0 else batch_size
+
+    sample_path = os.path.join(outpath, "semseg-images", time.strftime("%Y-%m-%d %H-%M-%S"))
+    grid_path = os.path.join(outpath, "semseg-grids", time.strftime("%Y-%m-%d %H-%M-%S"))
+    os.makedirs(sample_path, exist_ok=True)
+    os.makedirs(grid_path, exist_ok=True)
+    base_count = len(os.listdir(sample_path))
+    grid_count = len(os.listdir(outpath)) - 1
+
+    start_code = None
+    if opt.fixed_code:
+        start_code = torch.randn([opt.n_samples, opt.C, opt.H // opt.f, opt.W // opt.f], device=torch.device("cuda"))
+
+
+    # Folder of segmentation Images
+    if opt.from_folder:
+        files = os.listdir(opt.from_folder)
+        segPaths = [os.path.join(opt.from_folder, relpath) for relpath in files]
+
+        dataArr = []
+        for img in segPaths:
+            segmentImg = Image.open(img)
+            if not segmentImg.mode == "RGB":
+                segmentImg = segmentImg.convert("RGB")
+            segmentation = np.array(segmentImg).astype(np.uint8)
+            segmentation = (segmentation / 127.5 - 1.0).astype(np.float32)
+
+            if batch_size > 1:
+                segmentation = np.array(batch_size * [segmentation])
+
+            data = {}
+            data['segmentation'] = torch.from_numpy(segmentation)
+            dataArr.append(data)
+            # data['segmentation'].append(segmentation)
+        dataloader_iterator = iter(dataArr)
+        data_range = len(dataArr)
+        
+    # One segmentation Image
+    elif opt.from_filename:
+        
+        segmentImg = Image.open(opt.from_filename)
+        if not segmentImg.mode == "RGB":
+            segmentImg = segmentImg.convert("RGB")
+        segmentation = np.array(segmentImg).astype(np.uint8)
+        segmentation = (segmentation / 127.5 - 1.0).astype(np.float32)
+
+        if batch_size > 1:
+            segmentation = np.array(batch_size * [segmentation])
+
+        dataArr = []
+        data = {}
+        data['segmentation'] = torch.from_numpy(segmentation)
+        dataArr.append(data)
+        dataloader_iterator = iter(dataArr)
+        data_range = len(dataArr)
+    # Using test of validation dataset
+    else:
+        config = OmegaConf.load(f"{opt.config}")
+        try:
+            dataset = instantiate_from_config(config['data']['params']['test'])
+            print("Using test set.")
+        except:
+            print("Couldn't find test set. Using validation set.")
+            dataset = instantiate_from_config(config['data']['params']['validation'])
+
+        data_loader = DataLoader(dataset, batch_size=batch_size,#batch_size=batch_size,
+                            num_workers=0, shuffle=True)
+        dataloader_iterator = iter(data_loader)
+        data_range = len(dataset)
+
+    precision_scope = autocast if opt.precision=="autocast" else nullcontext
+    with torch.no_grad():
+        with precision_scope("cuda"):
+            with model.ema_scope():
+                tic = time.time()
+                all_samples = list()
+                for n in trange(data_range, desc="Sampling"): #trange(opt.n_iter, desc="Sampling"):
+                    batch = next(dataloader_iterator)
+                    # x, c = model.get_input(batch, 'image')
+                    c = get_input(batch, 'segmentation').to(model.device)
+
+                    # for prompts in tqdm(data, desc="data"):
+                    c = model.get_learned_conditioning(c)
+                    shape = [opt.C, opt.H // opt.f, opt.W // opt.f]
+                    samples_ddim, _ = sampler.sample(S=opt.ddim_steps,
+                                                        conditioning=c,
+                                                        batch_size=opt.n_samples,
+                                                        shape=shape,
+                                                        verbose=False,
+                                                        eta=opt.ddim_eta,
+                                                        x_T=start_code)
+
+                    x_samples_ddim = model.decode_first_stage(samples_ddim)
+                    x_samples_ddim = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
+                    x_samples_ddim = x_samples_ddim.cpu().permute(0, 2, 3, 1).numpy()
+
+                    # x_checked_image, has_nsfw_concept = check_safety(x_samples_ddim)
+
+                    x_checked_image_torch = torch.from_numpy(x_samples_ddim).permute(0, 3, 1, 2)
+
+                    if not opt.skip_save:
+                        for x_sample in x_checked_image_torch:
+                            x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
+                            #IN MY CASE IT IS 4 CHANNEL
+                            img = Image.fromarray(x_sample.astype(np.uint8),"RGBA")
+                            # img = put_watermark(img, wm_encoder)
+                            img.save(os.path.join(sample_path, f"{base_count:05}.png"))
+                            base_count += 1
+
+                    if not opt.skip_grid:
+                        all_samples.append(x_checked_image_torch)
+
+                if not opt.skip_grid:
+                    # additionally, save as grid
+                    grid = torch.stack(all_samples, 0)
+                    grid = rearrange(grid, 'n b c h w -> (n b) c h w')
+                    grid = make_grid(grid, nrow=n_rows)
+
+                    # to image
+                    grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
+                    img = Image.fromarray(grid.astype(np.uint8))
+                    # img = put_watermark(img, wm_encoder)
+                    img.save(os.path.join(grid_path, f'grid-{grid_count:04}.png'))
+                    grid_count += 1
+
+                toc = time.time()
+
+    print(f"Your samples are ready and waiting for you here: \n{outpath} \n"
+          f" \nEnjoy.")
+    return sample_path, grid_path
+
+
+
+def main(opt, model=None):
+    print("Sampling with seed:",opt.seed)
     seed_everything(opt.seed)
 
     config = OmegaConf.load(f"{opt.config}")
-    model = load_model_from_config(config, f"{opt.ckpt}")
+    if model == None:
+        model = load_model_from_config(config, f"{opt.ckpt}")
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model = model.to(device)
@@ -270,8 +440,10 @@ def main():
     batch_size = opt.n_samples
     n_rows = opt.n_rows if opt.n_rows > 0 else batch_size
 
-    sample_path = os.path.join(outpath, "samples")
+    sample_path = os.path.join(outpath, "semseg-images", time.strftime("%Y-%m-%d %H-%M-%S"))
+    grid_path = os.path.join(outpath, "semseg-grids", time.strftime("%Y-%m-%d %H-%M-%S"))
     os.makedirs(sample_path, exist_ok=True)
+    os.makedirs(grid_path, exist_ok=True)
     base_count = len(os.listdir(sample_path))
     grid_count = len(os.listdir(outpath)) - 1
 
@@ -293,6 +465,9 @@ def main():
             segmentation = (segmentation / 127.5 - 1.0).astype(np.float32)
 
 
+            if batch_size > 1:
+                segmentation = np.array(batch_size * [segmentation])
+
             data = {}
             data['segmentation'] = torch.from_numpy(segmentation)
             dataArr.append(data)
@@ -300,6 +475,23 @@ def main():
         dataloader_iterator = iter(dataArr)
         data_range = len(dataArr)
 
+    # One segmentation Image
+    elif opt.from_filename:
+        
+        segmentImg = Image.open(opt.from_filename)
+        if not segmentImg.mode == "RGB":
+            segmentImg = segmentImg.convert("RGB")
+        segmentation = np.array(segmentImg).astype(np.uint8)
+        segmentation = (segmentation / 127.5 - 1.0).astype(np.float32)
+
+        if batch_size > 1:
+            segmentation = np.array(batch_size * [segmentation])
+        dataArr = []
+        data = {}
+        data['segmentation'] = torch.from_numpy(segmentation)
+        dataArr.append(data)
+        dataloader_iterator = iter(dataArr)
+        data_range = len(dataArr)
     else:
         try:
             dataset = instantiate_from_config(config['data']['params']['test'])
@@ -365,7 +557,7 @@ def main():
                     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
                     img = Image.fromarray(grid.astype(np.uint8))
                     img = put_watermark(img, wm_encoder)
-                    img.save(os.path.join(outpath, f'grid-{grid_count:04}.png'))
+                    img.save(os.path.join(grid_path, f'grid-{grid_count:04}.png'))
                     grid_count += 1
 
                 toc = time.time()
@@ -375,4 +567,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    opt = parseArguments()
+    main(opt)
