@@ -165,8 +165,9 @@ def scale(value):
         #Downsizing the real maximums by x30
         max = 291; # max is 8729;
         min = -14; # min is -415;
+        # max = 8729
+        # min =  -415
 
-        #Note: No need to normalize, result will be [0,1], if not then normalizedData = (value - min) / (max - min)
         normalizedValue = (value - 0) / (255 - 0)
         lmbda = 0.11 # wsnt it 0.08
         scaledVal = InverseCumulativeExponential(normalizedValue, lmbda)
@@ -183,21 +184,33 @@ def TexturedGLTFFromHeightmap(heightmapFilename : str, gltfOutFilename : str, rg
     img = Image.open(heightmapFilename)
     data = np.array(img)
     
-    # Deform Height by a scaler
-    scalingFunction = np.vectorize(scale)
-    rescaledData = scalingFunction(data) #* (maxOriginal - minOriginal) + minOriginal
-    print(f"max is: {rescaledData.max()}, min is: {rescaledData.min()}")
-    ##GOTTA ADD TO mAKE IT ABOVE 0
-    rescaledData += 14
-    newImg = Image.fromarray(rescaledData)
-    newImg = newImg.convert('L')
+    # maxOriginal = 8729
+    # minOriginal =  -415
+    minOriginal =  -14
+
+
+    # # Deform Height by a scaler
+    # scalingFunction = np.vectorize(scale)
+    # rescaledData = scalingFunction(data) 
+    # print(f"max is: {rescaledData.max()}, min is: {rescaledData.min()}")
+    # ##GOTTA ADD TO mAKE IT ABOVE 0
+    # rescaledData -= minOriginal
+    # newImg = Image.fromarray(rescaledData)
+    # newImg = newImg.convert('I;16')
     
-    newImg.save('newnewnewn.png')
-    heightmap = pv.read('newnewnewn.png')
+    # newImg.save('newnewnewn.png')
+    # heightmap = pv.read('newnewnewn.png')
 
 
-    # reader = pv.get_reader(heightmapFilename)
-    # heightmap = reader.read()
+
+    # print(heightmap.points[:,-1])
+    # print(heightmap.points[:,])
+    # print(heightmap.points[:])
+    # heightmap.points[:,] *= 30.0
+    # print(heightmap.points.shape)
+
+    reader = pv.get_reader(heightmapFilename)
+    heightmap = reader.read()
 
     # print("READ")
     

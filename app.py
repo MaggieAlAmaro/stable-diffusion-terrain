@@ -48,7 +48,7 @@ def loadSemanticSynthModel():
 
 
 # modelTxt, samplerTxt = loadTxt2ImgModel()
-modelSegSem, SamplerSegSem = loadSemanticSynthModel()
+# modelSegSem, SamplerSegSem = loadSemanticSynthModel()
 
 
 def txt2imgmodelPayload(prompt, steps, iter, batch,seed, sampleType):
@@ -152,7 +152,7 @@ def interpretInputImage(inputFilename):
     fullRenderName = os.path.join(meshOut, renderName+ '.gltf')
     # renderCount = len(os.listdir(os.dirpath(rgbFilename)))
     TexturedGLTFFromHeightmap(aFilename,fullRenderName, rgbFilename)
-    return fullRenderName
+    return fullRenderName, rgbFilename, aFilename
     # img = Image.open(inputFilename)
     # print(img.mode)
     # # print(inputFilename)
@@ -178,7 +178,7 @@ def rgaTexture(inputFilename):
     fullRenderName = os.path.join(meshOut, renderName+ '.gltf')
     # renderCount = len(os.listdir(os.dirpath(rgbFilename)))
     TexturedGLTFFromHeightmap(aFilename,fullRenderName, rgbFilename)
-    return fullRenderName
+    return fullRenderName, rgbFilename, aFilename
 
 
 
@@ -245,6 +245,11 @@ with gr.Blocks() as demo:
         
     #     )
 
+    with gr.Row():
+        with gr.Column(): 
+            texture = gr.Image(sources=[],width="20vw",)
+        with gr.Column(): 
+            heightmap = gr.Image(sources=[],width="20vw",)
     
 
 
@@ -257,7 +262,7 @@ with gr.Blocks() as demo:
             selectedImg = gr.Textbox(visible=False)
             gallery.select(fn=getSelectedGalleryImage,outputs=selectedImg)
             renderBtn = gr.Button("Render")
-            renderBtn.click(fn=rgaTexture, inputs=selectedImg, outputs=modelVis)
+            renderBtn.click(fn=rgaTexture, inputs=selectedImg, outputs=[modelVis,texture,heightmap])
 
         ################# Model Parameters
         with gr.Column(scale=1):
@@ -411,7 +416,7 @@ with gr.Blocks() as demo:
                 #imgPath = gr.Image(type='filepath',image_mode='RGBA',sources=["upload","clipboard"])
                 imgPath = gr.File(type='filepath',file_types=['image'])
                 input_button = gr.Button("Import")
-                input_button.click(fn=interpretInputImage, inputs=imgPath, outputs=modelVis, api_name="LOLOLOL")
+                input_button.click(fn=interpretInputImage, inputs=imgPath, outputs=[modelVis,texture,heightmap], api_name="LOLOLOL")
                 
                 # @seg_button.click(inputs=name, outputs=output)
                 # def greet(name):
